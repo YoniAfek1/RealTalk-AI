@@ -73,7 +73,21 @@ export default function Home() {
         )}
       </div>
       <img src="/animations/waves.gif" alt="waves animation" className={styles.wavingAnim} />
-      {/* TODO: Add 'ראשי' (Home) to the sidebar navigation with a home icon */}
+
+      <div style={{
+        position: 'absolute',
+        bottom: '0.5rem',
+        left: '1rem',
+        textAlign: 'left',
+        fontSize: '0.9rem',
+        color: '#888',
+        lineHeight: '1.2',
+        zIndex: 10
+      }}>
+        <div>Made by</div>
+        <div>Yoni Afek</div>
+      </div>
+
     </div>
   );
 }

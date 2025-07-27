@@ -211,7 +211,7 @@ export default function ConversationsIndex() {
 
   const handleRecognizedText = async (text: string) => {
     if (isConversationEnded) {
-      setDebugMsg("השיחה נגמרה. התחילו שיחה חדשה");
+      setDebugMsg("🚫 Conversation ended. Start a new one.");
       return;
     }
     if (!chatSession || !text) {
