@@ -155,12 +155,6 @@ export default function ConversationTemplate({ prompt, title, emoji = '💬' }: 
   const startNewConversation = async () => {
     setHistory([]);
     setDebugMsg('🔄 Starting new conversation...');
-    
-    try {
-      if (!API_KEY) {
-        setDebugMsg('❌ Missing NEXT_PUBLIC_GEMINI_API_KEY');
-        return;
-      }
     try {
       if (!API_KEY) {
         setDebugMsg('❌ Missing NEXT_PUBLIC_GEMINI_API_KEY');
