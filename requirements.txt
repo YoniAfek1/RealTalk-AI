@@ -1,5 +1,6 @@
 transformers==4.36.2
-torch==2.1.2
+# Use a torch version available on Vercel's Python images
+torch==2.2.0
 sentencepiece==0.1.99
 numpy>=1.20.0
 omegaconf>=2.3.0 
