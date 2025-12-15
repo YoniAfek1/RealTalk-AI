@@ -14,59 +14,59 @@
   text-align: center;
 }
 
-.optionsGrid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 2.0rem;
-  justify-items: center;
-  max-width:600px;
-  width: 100%;
-  padding: 1rem;
-  margin: 1rem;
-}
-
-.optionCard {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background: #ffffff;
-  border: 2px solid #ffffff;
-  border-radius: 1.8rem;
-  padding: 1.5rem;
-  text-align: center;
-  text-decoration: none;
-  min-width: 250px;
-  min-height: 250px;
-  box-shadow: 0 4px 12px rgba(30, 64, 175, 0.1);
-  transition: all 0.2s ease-in-out;
-}
-
-.optionCard:hover {
-  background-color: #ffffff;
-  border-color: #90caf9;
-  transform: translateY(-4px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}
-
-.optionText {
-  font-size: 1.8rem;
-  font-weight: 700;
-  margin-bottom: 1.5rem;
+.description {
+  max-width: 720px;
+  margin: 0 auto 2rem;
   color: #2c3e50;
+  font-size: 1.1rem;
+  text-align: center;
 }
 
-.icon {
+.quizList {
+  width: 100%;
+  max-width: 960px;
+  display: grid;
+  gap: 1.25rem;
+  padding: 0 1rem 2rem;
+}
+
+.quizCard {
+  background: #fff;
+  border-radius: 1.2rem;
+  box-shadow: 0 4px 12px rgba(30, 64, 175, 0.1);
+  padding: 1.5rem;
+  border: 1px solid #e0eefc;
+}
+
+.quizPrompt {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #2c3e50;
+  margin-bottom: 1rem;
+}
+
+.quizOptions {
   display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-top: 0;
+  flex-wrap: wrap;
+  gap: 0.75rem;
 }
 
-.iconImage {
-  width: 7rem;
-  height: 7rem;
-  object-fit: contain;
+.quizButton {
+  flex: 1 1 200px;
+  min-width: 160px;
+  padding: 0.85rem 1rem;
+  border-radius: 0.9rem;
+  border: 1px solid #90caf9;
+  background: #e8f4ff;
+  color: #1e3a8a;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.quizButton:hover {
+  background: #d7eaff;
+  border-color: #64b5f6;
 }
 
 .bottomAnim {
@@ -92,23 +92,11 @@
 }
 
 @media (max-width: 600px) {
-  .optionsGrid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1rem;
+  .quizOptions {
+    flex-direction: column;
   }
-  .optionCard {
-    min-width: 120px;
-    min-height: 120px;
-    padding: 1rem;
-    border-radius: 1.2rem;
-  }
-  .optionText {
-    font-size: 1.5rem;
-    margin-bottom: 1rem;
-  }
-  .iconImage {
-    width: 5rem;
-    height: 5rem;
+  .quizButton {
+    flex: 1 1 auto;
   }
   .annaImage {
     width: 180px;
@@ -126,28 +114,6 @@
     margin-bottom: 1.5rem;
   }
 
-  .optionsGrid {
-    gap: 1rem;
-    padding: 0.75 0.75rem;
-  }
-
-  .optionCard {
-    width: 170px;
-    height: 170px;
-    padding: 1rem;
-    border-radius: 20px;
-  }
-
-  .optionText {
-    font-size: 1.5rem;
-    margin-bottom: 1rem;
-  }
-
-  .iconImage {
-    width: 70px;
-    height: 70px;
-  }
-
   .annaImage {
     width: 180px;
     height: 180px;
@@ -162,28 +128,6 @@
   .title {
     font-size: 2rem;
     margin-bottom: 1.25rem;
-  }
-
-  .optionsGrid {
-    gap: 1rem;
-    padding: 0.6 0.6rem;
-  }
-
-  .optionCard {
-    width: 140px;
-    height: 140px;
-    padding: 0.8rem;
-    border-radius: 16px;
-  }
-
-  .optionText {
-    font-size: 1.3rem;
-    margin-bottom: 0.7rem;
-  }
-
-  .iconImage {
-    width: 62px;
-    height: 62px;
   }
 
   .annaImage {
