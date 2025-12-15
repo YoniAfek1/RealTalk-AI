@@ -1,359 +1,200 @@
-import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { motion, useAnimation, AnimatePresence } from 'framer-motion';
-import { useVocabularyStore } from '@/store/vocabularyStore';
-import { Word, WordStatus } from '@/types/Word';
-import styles from '@/styles/Vocabulary.module.css';
-import { FaFilter } from 'react-icons/fa';
+import { useEffect, useState } from 'react';
+import styles from '../../styles/CardsWords.module.css';
+import * as XLSX from 'xlsx';
+import { FaVolumeUp, FaArrowLeft, FaArrowRight, FaArrowCircleLeft, FaArrowAltCircleLeft } from 'react-icons/fa';
 
-export default function VocabularyPage() {
-  const { words, isLoading, error, loadWords, updateWordStatus } = useVocabularyStore();
+interface DailyWordRow {
+  Russian: string;
+  Hebrew: string;
+  Transliteration: string;
+  AssociationWord: string;
+  Association: string;
+  Icon: string;
+  Topic?: string;
+}
+
+async function getVoices(): Promise<SpeechSynthesisVoice[]> {
+  const synth = window.speechSynthesis;
+  let voices = synth.getVoices();
+  if (voices.length) return voices;
+  return new Promise(resolve => {
+    synth.onvoiceschanged = () => {
+      voices = synth.getVoices();
+      if (voices.length) resolve(voices);
+    };
+  });
+}
+
+export default function DailyWordPage() {
+  const [words, setWords] = useState<DailyWordRow[]>([]);
+  const [filteredWords, setFilteredWords] = useState<DailyWordRow[]>([]);
+  const [topics, setTopics] = useState<string[]>([]);
+  const [selectedTopic, setSelectedTopic] = useState<string>('הכל');
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [showTranslation, setShowTranslation] = useState(false);
-  const [showAssociation, setShowAssociation] = useState(false);
-  const [isAnimating, setIsAnimating] = useState(false);
-  const [showFilter, setShowFilter] = useState(false);
-  const controls = useAnimation();
-  const filterRef = useRef<HTMLDivElement>(null);
-  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [topicFilter, setTopicFilter] = useState('all');
+  const [flipped, setFlipped] = useState(false);
+  const [cardColor, setCardColor] = useState<string>('');
+  const [imageExists, setImageExists] = useState(false);
 
-  // Get unique topics from words
-  const topics = useMemo(() => {
-    const set = new Set<string>();
-    words.forEach(word => {
-      if (word.topic) set.add(word.topic);
-    });
-    return Array.from(set);
-  }, [words]);
+  const pastelColors = [
+    '#FFF5E5', '#E8F8F5', '#FDE2FF', '#E0F7FA', '#FFF0F0',
+    '#F5FAD1', '#E9F7EF', '#F9EBFF', '#FFEFD5', '#F0F8FF'
+  ];
 
-  // Filter words based on filters
-  const filteredWords = useMemo(() => {
-    return words.filter(word => {
-      const statusMatch = statusFilter === 'all' || word.status === statusFilter;
-      const topicMatch = topicFilter === 'all' || word.topic === topicFilter;
-      return statusMatch && topicMatch;
-    });
-  }, [words, statusFilter, topicFilter]);
+  const getNewColor = (currentColor: string): string => {
+    const options = pastelColors.filter(c => c !== currentColor);
+    return options[Math.floor(Math.random() * options.length)];
+  };
 
-  const currentWord = filteredWords[currentIndex] || null;
+  const checkImageExists = (filename: string) => {
+    const img = new Image();
+    img.src = `/animations/assosiations/${filename}`;
+    img.onload = () => setImageExists(true);
+    img.onerror = () => setImageExists(false);
+  };
 
-  // Handle click outside to close filter
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (filterRef.current && !filterRef.current.contains(event.target as Node)) {
-        setShowFilter(false);
+    const loadExcel = async () => {
+      try {
+        const res = await fetch('/data/Russian_Words_Cards.xlsx');
+        const arrayBuffer = await res.arrayBuffer();
+        const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const data: DailyWordRow[] = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+        setWords(data);
+        // Extract unique topics
+        const uniqueTopics = Array.from(new Set(data.map(row => row.Topic).filter((t): t is string => !!t)));
+        setTopics(uniqueTopics);
+        setSelectedTopic('הכל');
+      } catch (err) {
+        console.error('Failed to load words:', err);
       }
     };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    loadExcel();
   }, []);
 
+  // Filter words by topic
   useEffect(() => {
-    loadWords();
-  }, [loadWords]);
-
-  // Initialize speech synthesis
-  useEffect(() => {
-    utteranceRef.current = new SpeechSynthesisUtterance();
-    utteranceRef.current.lang = 'ru-RU';
-    utteranceRef.current.rate = 0.9;
-
-    return () => {
-      if (window.speechSynthesis) {
-        window.speechSynthesis.cancel();
-      }
-    };
-  }, []);
-
-  const playAudio = useCallback(() => {
-    if (!currentWord || !utteranceRef.current || !window.speechSynthesis) return;
-
-    window.speechSynthesis.cancel();
-    utteranceRef.current.text = currentWord.russianWord;
-
-    const voices = window.speechSynthesis.getVoices();
-    const russianVoice = voices.find(voice => voice.lang.includes('ru'));
-    if (russianVoice) {
-      utteranceRef.current.voice = russianVoice;
+    let filtered = words;
+    if (selectedTopic && selectedTopic !== 'הכל') {
+      filtered = words.filter(w => w.Topic === selectedTopic);
     }
-
-    window.speechSynthesis.speak(utteranceRef.current);
-  }, [currentWord]);
-
-  useEffect(() => {
-    if (currentWord && !isAnimating) {
-      const timer = setTimeout(() => {
-        playAudio();
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [currentWord, isAnimating, playAudio]);
-
-  const handleSwipe = async (direction: 'left' | 'right' | 'up') => {
-    if (isAnimating || !currentWord) return;
-    setIsAnimating(true);
-
-    if (window.speechSynthesis) {
-      window.speechSynthesis.cancel();
-    }
-
-    let status: WordStatus;
-    let animationX = 0;
-    let animationY = 0;
-    let rotation = 0;
-
-    switch (direction) {
-      case 'right':
-        status = 'green';
-        animationX = 1000;
-        rotation = 30;
-        break;
-      case 'up':
-        status = 'yellow';
-        animationY = -1000;
-        break;
-      case 'left':
-        status = 'red';
-        animationX = -1000;
-        rotation = -30;
-        break;
-    }
-
-    // If filtering is active, fade out, switch, then update status
-    if (statusFilter !== 'all') {
-      await controls.start({
-        opacity: 0,
-        transition: { duration: 0.1 },
-      });
-      const nextIndex = filteredWords.findIndex(word => word.id !== currentWord.id);
-      setCurrentIndex(nextIndex === -1 ? 0 : nextIndex);
-      setShowTranslation(false);
-      setShowAssociation(false);
-      await updateWordStatus(currentWord.id, status);
-      await controls.set({ opacity: 1 });
-      setIsAnimating(false);
-      return;
-    }
-
-    // Normal mode with animation
-    await controls.start({
-      x: animationX,
-      y: animationY,
-      rotate: rotation,
-      opacity: 0,
-      transition: { duration: 0.3 }
-    });
-
-    await updateWordStatus(currentWord.id, status);
-
-    setTimeout(() => {
-      setCurrentIndex(prev => Math.min(prev + 1, filteredWords.length - 1));
-      setShowTranslation(false);
-      setShowAssociation(false);
-      setIsAnimating(false);
-      controls.set({ x: 0, y: 0, rotate: 0, opacity: 1 });
-    }, 100);
-  };
-
-  const handleKeyPress = (e: KeyboardEvent) => {
-    if (isAnimating) return;
-
-    switch (e.key) {
-      case 'ArrowRight':
-        handleSwipe('right');
-        break;
-      case 'ArrowLeft':
-        handleSwipe('left');
-        break;
-      case 'ArrowUp':
-        handleSwipe('up');
-        break;
-      case ' ':
-        setShowTranslation(prev => !prev);
-        break;
-    }
-  };
-
-  useEffect(() => {
-    window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [currentIndex, isAnimating]);
-
-  const toggleTranslation = () => {
-    setShowTranslation(prev => !prev);
-    setShowAssociation(false);
-  };
-
-  const toggleAssociation = () => {
-    setShowAssociation(prev => !prev);
-    setShowTranslation(false);
-  };
-
-  useEffect(() => {
-    if (currentIndex >= filteredWords.length) {
+    setFilteredWords(filtered);
+    // Pick a random index for the first card
+    if (filtered.length > 0) {
+      setCurrentIndex(Math.floor(Math.random() * filtered.length));
+    } else {
       setCurrentIndex(0);
     }
-  }, [filteredWords.length]);
+  }, [selectedTopic, words]);
 
-  if (isLoading) return <div className={styles.loading}>Loading...</div>;
-  if (error) return <div className={styles.error}>{error}</div>;
+  useEffect(() => {
+    if (filteredWords.length > 0) {
+      const word = filteredWords[currentIndex];
+      setCardColor(prev => getNewColor(prev));
+      checkImageExists(`${word.Russian.toLowerCase()}.png`);
+    }
+  }, [currentIndex, filteredWords]);
+
+  const speak = async (text: string) => {
+    const synth = window.speechSynthesis;
+    const voices = await getVoices();
+    const ruVoice = voices.find(v => v.lang?.toLowerCase().startsWith('ru') || v.name?.toLowerCase().includes('russian'));
+    if (!ruVoice) {
+      alert('⚠️ Russian voice not available on this device. Please install Russian language voices in your system settings.');
+      return;
+    }
+    synth.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.voice = ruVoice;
+    utterance.lang = ruVoice.lang;
+    synth.speak(utterance);
+  };
+
+  const next = () => {
+    setCurrentIndex((prev) => (prev + 1) % filteredWords.length);
+    setFlipped(false);
+  };
+
+  const prev = () => {
+    setCurrentIndex((prev) => (prev - 1 + filteredWords.length) % filteredWords.length);
+    setFlipped(false);
+  };
+
+  if (!filteredWords.length) return <div className={styles.loading}>לא נמצאו מילים בנושא זה</div>;
+
+  const word = filteredWords[currentIndex];
 
   return (
     <div className={styles.container}>
-      <button 
-        className={styles.filterToggleButton}
-        onClick={() => setShowFilter(prev => !prev)}
-        aria-label="Toggle Filters"
-      >
-        <FaFilter />
-      </button>
+      <h1 className={styles.title}>🧩 אוצר מילים 🧩</h1>
+      <div className={styles.topicFilter}>
+        <select
+          value={selectedTopic}
+          onChange={e => setSelectedTopic(e.target.value)}
+          className={styles.dropdown}
+        >
+          <option value="הכל">הכל</option>
+          {topics.map(topic => (
+            <option key={topic} value={topic}>{topic}</option>
+          ))}
+        </select>
+      </div>
+      <p className={styles.subtitle}>לחצו על הקלף לחשיפת האסוציאציה</p>
+      <div className={styles.cardContainer}>
+        <div
+          className={`${styles.card} ${flipped ? styles.cardFlipped : ''}`}
+          style={{ backgroundColor: cardColor }}
+          onClick={() => setFlipped(!flipped)}
+        >
+          {/* Front Side */}
+          <div className={styles.cardFront} style={{ backgroundColor: cardColor }}>
+            <div className={styles.wordRow}>
+              <span className={styles.word}>{word.Russian}</span>
+            </div>
+            <div className={styles.icon}>{word.Icon}</div>
+            <button
+              className={styles.speakerButton}
+              onClick={(e) => {
+                e.stopPropagation();
+                speak(word.Russian);
+              }}
+            >
+              <FaVolumeUp />
+            </button>
+          </div>
 
-      <AnimatePresence>
-        {showFilter && (
-          <motion.div 
-            ref={filterRef}
-            className={styles.filterMenu}
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.2 }}
-          >
-            <label className={styles.filterLabel} htmlFor="statusFilter">
-              <FaFilter style={{ marginRight: 4, fontSize: '1em', opacity: 0.7 }} />
-              סטטוס
-            </label>
-            <select
-              id="statusFilter"
-              className={styles.filterDropdown}
-              value={statusFilter}
-              onChange={e => {
-                setStatusFilter(e.target.value);
-                setCurrentIndex(0);
-              }}
-            >
-              <option value="all">הכל</option>
-              <option value="red">אדום</option>
-              <option value="yellow">צהוב</option>
-              <option value="green">ירוק</option>
-            </select>
-            <label className={styles.filterLabel} htmlFor="topicFilter">
-              <FaFilter style={{ marginRight: 4, fontSize: '1em', opacity: 0.7 }} />
-              נושא
-            </label>
-            <select
-              id="topicFilter"
-              className={styles.filterDropdown}
-              value={topicFilter}
-              onChange={e => {
-                setTopicFilter(e.target.value);
-                setCurrentIndex(0);
-              }}
-            >
-              <option value="all">הכל</option>
-              {topics.map(topic => (
-                <option key={topic} value={topic}>{topic}</option>
-              ))}
-            </select>
-            {filteredWords.length === 0 && (
-              <div className={styles.noResultsSoft}>
-                אין מילים מתאימות. נסו לשנות את המסננים.
+          {/* Back Side */}
+          <div className={styles.cardBack} style={{ backgroundColor: cardColor }}>
+            <div className={styles.wordRow}>
+              <span className={styles.word}>{word.Russian}</span>
+              <span className={styles.separator}>–</span>
+              <span className={styles.word}>{word.Hebrew}</span>
+            </div>
+            <div className={styles.transliteration}>{word.Transliteration}</div>
+            <div className={styles.associationBlock}>
+              <div className={styles.associationRow}>
+                <span className={styles.associationLabel}>האסוציאציה:</span>
+                <span className={styles.associationValue}>{word.AssociationWord}</span>
+              </div>
+              <div className={styles.associationSentence}>{word.Association}</div>
+            </div>
+            {imageExists && (
+              <div className={styles.imageContainer}>
+                <img
+                  src={`/animations/assosiations/${word.Russian.toLowerCase()}.png`}
+                  alt={`illustration for ${word.Russian}`}
+                  className={styles.wordImage}
+                />
               </div>
             )}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {currentWord && (
-        <motion.div
-          className={`${styles.card} ${styles[currentWord.status || 'red']}`}
-          animate={controls}
-          drag
-          dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
-          onDragEnd={(e, info) => {
-            const offsetX = info.offset.x;
-            const offsetY = info.offset.y;
-            const velocityX = info.velocity.x;
-            const velocityY = info.velocity.y;
-
-            const isSignificantMove = 
-              Math.abs(offsetX) > 100 || 
-              Math.abs(offsetY) > 100 || 
-              Math.abs(velocityX) > 500 || 
-              Math.abs(velocityY) > 500;
-
-            if (!isSignificantMove) return;
-
-            if (Math.abs(offsetX) > Math.abs(offsetY)) {
-              handleSwipe(offsetX > 0 ? 'right' : 'left');
-            } else if (offsetY < 0) {
-              handleSwipe('up');
-            }
-          }}
-        >
-          <button 
-            className={styles.speakerButton}
-            onClick={playAudio}
-            aria-label="Play pronunciation"
-          >
-            <svg viewBox="0 0 24 24" fill="currentColor">
-              <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
-            </svg>
-          </button>
-
-          <div className={styles.word}>{currentWord.russianWord}</div>
-          
-          <AnimatePresence mode="wait">
-            {showTranslation && (
-              <motion.div
-                className={styles.translation}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.2 }}
-              >
-                {currentWord.hebrewTranslation}
-              </motion.div>
-            )}
-            
-            {showAssociation && currentWord.isAssociated && (
-              <motion.div
-                className={styles.association}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.2 }}
-              >
-                <div className={styles.associationWord}>
-                  {currentWord.associationWord}
-                </div>
-                <div className={styles.associationSentence}>
-                  {currentWord.associationSentence}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <div className={styles.buttonContainer}>
-            <button
-              className={`${styles.translateButton} ${showTranslation ? styles.active : ''}`}
-              onClick={toggleTranslation}
-            >
-              {showTranslation ? 'הסתר תרגום' : 'הצג תרגום'}
-            </button>
-            
-            {currentWord.isAssociated && (
-              <button
-                className={`${styles.associationButton} ${showAssociation ? styles.active : ''}`}
-                onClick={toggleAssociation}
-              >
-                {showAssociation ? 'הסתר אסוציאציה' : 'הצג אסוציאציה'}
-              </button>
-            )}
           </div>
-        </motion.div>
-      )}
+        </div>
+      </div>
+
+      <div className={styles.navigation}>
+        <button onClick={prev}><FaArrowRight /></button>
+        <button onClick={next}><FaArrowLeft /></button>
+      </div>
     </div>
   );
-} 
+}
