@@ -154,7 +154,7 @@ export default function ConversationsIndex() {
           setDebugMsg('📦 Initializing Gemini...');
           const genAI = new GoogleGenerativeAI(API_KEY);
           // וודא שהמודל תואם את מה שמצאת בסקריפט הבדיקה (למשל gemini-2.0-flash או gemini-1.5-flash-latest)
-          const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+          const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
 
           const globalPrompt = correctionEnabled
             ? basePrompt + "\n\n" + correctionAddon
@@ -380,7 +380,7 @@ export default function ConversationsIndex() {
           return;
         }
         const genAI = new GoogleGenerativeAI(API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
         const globalPrompt = correctionEnabled
           ? basePrompt + "\n\n" + correctionAddon
           : basePrompt;
