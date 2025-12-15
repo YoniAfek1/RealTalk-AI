@@ -10,7 +10,7 @@ declare global {
   }
 }
 
-const API_KEY = "process.env.NEXT_PUBLIC_GEMINI_API_KEY";
+const API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 const MAX_MESSAGES = 20;
 
 const basePrompt = `
