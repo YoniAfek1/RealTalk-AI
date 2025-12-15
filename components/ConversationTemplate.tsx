@@ -9,7 +9,7 @@ declare global {
   }
 }
 
-const API_KEY = "AIzaSyBJjYZif960Nh_FccIVcngUZcSFfPq_tgA";
+const API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
 const MAX_MESSAGES = 10;
 
 type Role = 'user' | 'assistant';
@@ -157,6 +157,15 @@ export default function ConversationTemplate({ prompt, title, emoji = '💬' }: 
     setDebugMsg('🔄 Starting new conversation...');
     
     try {
+      if (!API_KEY) {
+        setDebugMsg('❌ Missing NEXT_PUBLIC_GEMINI_API_KEY');
+        return;
+      }
+    try {
+      if (!API_KEY) {
+        setDebugMsg('❌ Missing NEXT_PUBLIC_GEMINI_API_KEY');
+        return;
+      }
       const genAI = new GoogleGenerativeAI(API_KEY);
       const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       const chat = await model.startChat({

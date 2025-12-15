@@ -10,7 +10,7 @@ declare global {
   }
 }
 
-const API_KEY = "AIzaSyBJjYZif960Nh_FccIVcngUZcSFfPq_tgA";
+const API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
 const MAX_MESSAGES = 20;
 
 const basePrompt = `
@@ -145,6 +145,10 @@ export default function ConversationsIndex() {
     if (selectedConversation) {
       const initGemini = async () => {
         try {
+          if (!API_KEY) {
+            setDebugMsg('❌ Missing NEXT_PUBLIC_GEMINI_API_KEY');
+            return;
+          }
           setDebugMsg('📦 Initializing Gemini...');
           const genAI = new GoogleGenerativeAI(API_KEY);
           const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
@@ -289,6 +293,10 @@ export default function ConversationsIndex() {
     
     if (selectedConversation) {
       try {
+        if (!API_KEY) {
+          setDebugMsg('❌ Missing NEXT_PUBLIC_GEMINI_API_KEY');
+          return;
+        }
         const genAI = new GoogleGenerativeAI(API_KEY);
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
         const globalPrompt = correctionEnabled
