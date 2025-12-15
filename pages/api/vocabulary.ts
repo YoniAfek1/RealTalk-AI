@@ -18,8 +18,8 @@ export default async function handler(
   res: NextApiResponse
 ) {
   try {
-    // Read the Excel file from the public directory
-    const filePath = path.join(process.cwd(), 'public', 'data', 'Russian_Similar_Words.xlsx');
+    // Read the Excel file from the public directory (actual file in repo)
+    const filePath = path.join(process.cwd(), 'public', 'data', 'Russian_Words.xlsx');
     
     const workbook = XLSX.readFile(filePath);
     const sheetName = workbook.SheetNames[0];
@@ -42,15 +42,26 @@ export default async function handler(
      */
     const words = data.map((row: any, index: number) => {
       const id = index.toString();
+      const isAssociatedRaw = row['Is associated'];
+      const associationWord = row['Association Word'] || '';
+      const associationSentence = row['Association sentence'] || '';
+
       return {
         id,
         russianWord: row['Russian'] || '',
-        hebrewTranslation: row['Hebrew Translation'] || '',
+        hebrewTranslation: row['Hebrew'] || '',
         hebrewTransliteration: row['תעתיק'] || '',
         status: savedStatuses[id] || 'red',
         topic: row['Topic'] || '',
-        hasAssociation: Boolean(row['Association Word']),
-        associationSentence: row['Association sentence'] || ''
+        isAssociated: Boolean(
+          associationWord ||
+          associationSentence ||
+          isAssociatedRaw === 1 ||
+          isAssociatedRaw === '1' ||
+          isAssociatedRaw === true
+        ),
+        associationWord: associationWord || undefined,
+        associationSentence: associationSentence || undefined,
       };
     }).filter(word => word.russianWord && word.hebrewTranslation);
 

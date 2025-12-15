@@ -58,10 +58,10 @@ export const useVocabularyStore = create<VocabularyState>((set, get) => ({
       const response = await fetch('/api/vocabulary');
       const data = await response.json();
 
-      // Map the data to include association fields
+      // Normalize association-related fields and booleans coming from the API
       const words = data.map((word: any) => ({
         ...word,
-        isAssociated: word.isAssociated === "1",
+        isAssociated: word.isAssociated === true || word.isAssociated === "1" || word.isAssociated === 1,
         associationWord: word.associationWord || undefined,
         associationSentence: word.associationSentence || undefined
       }));
