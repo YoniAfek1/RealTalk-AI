@@ -10,7 +10,7 @@ declare global {
   }
 }
 
-const API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
+const API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 const MAX_MESSAGES = 20;
 
 const basePrompt = `
@@ -123,6 +123,8 @@ export default function ConversationsIndex() {
   const [correctionEnabled, setCorrectionEnabled] = useState(false);
   const [suggestedReplies, setSuggestedReplies] = useState<string[]>([]);
   const chatRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (chatRef.current) {
@@ -151,13 +153,13 @@ export default function ConversationsIndex() {
           }
           setDebugMsg('📦 Initializing Gemini...');
           const genAI = new GoogleGenerativeAI(API_KEY);
-          const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+          // וודא שהמודל תואם את מה שמצאת בסקריפט הבדיקה (למשל gemini-2.0-flash או gemini-1.5-flash-latest)
+          const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
           const globalPrompt = correctionEnabled
             ? basePrompt + "\n\n" + correctionAddon
             : basePrompt;
 
-          // Add instruction for varied greeting
           const promptWithGreeting = `${globalPrompt}\n\n${selectedConversation.prompt}\n\nНачни диалог с подходящего приветствия, соответствующего твоей роли. Не используй всегда одно и то же приветствие.`;
 
           const chat = await model.startChat({
@@ -166,18 +168,19 @@ export default function ConversationsIndex() {
               parts: [{ text: promptWithGreeting }]
             }],
             generationConfig: {
-              maxOutputTokens: 50,
+              // ✅ תיקון קריטי: הגדלתי מ-50 ל-500 כדי שהתשובה לא תיחתך באמצע
+              maxOutputTokens: 500, 
               temperature: 0.7,
             },
           });
 
           setChatSession(chat);
 
-          // Send a dummy message to trigger the assistant's greeting
           const dummyInputs = ["...", "—", "🔊", "👋"];
           const dummy = dummyInputs[Math.floor(Math.random() * dummyInputs.length)];
           const initialResponse = await chat.sendMessage(dummy);
           const assistantMessage = initialResponse.response.text();
+          
           const { reply, options } = extractReplyAndOptions(assistantMessage);
           setHistory([{ role: 'assistant', content: reply }]);
           setSuggestedReplies(options);
@@ -194,6 +197,7 @@ export default function ConversationsIndex() {
   }, [selectedConversation, correctionEnabled]);
 
   const speak = (text: string) => {
+    if (!text) return;
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'ru-RU';
     const voice = voices.find(v => v.lang.startsWith('ru'));
@@ -202,11 +206,19 @@ export default function ConversationsIndex() {
   };
 
   function extractReplyAndOptions(fullText: string): { reply: string, options: string[] } {
-    const parts = fullText.split('Варианты ответа:');
+    if (!fullText) return { reply: "", options: [] };
+    
+    // ✅ שיפור: בדיקה שהמפריד קיים כדי למנוע קריסה
+    const separator = 'Варианты ответа:';
+    if (!fullText.includes(separator)) {
+        return { reply: fullText, options: [] };
+    }
+
+    const parts = fullText.split(separator);
     const reply = parts[0].trim();
     const options = parts[1]
       ? parts[1]
-          .split('–')
+          .split('–') // שים לב שזה מקף ארוך, וודא שהמודל מייצר אותו או השתמש ב-replace
           .map(opt => opt.trim())
           .filter(opt => opt.length > 0)
       : [];
@@ -244,7 +256,27 @@ export default function ConversationsIndex() {
     setLoading(false);
   };
 
+  // משתנה עזר לשמירת הטקסט הזמני מחוץ ל-State כדי למנוע ריצודים
+  const transcriptRef = useRef("");
+
+  const stopRecognition = () => {
+    const activeRecognition = recognitionRef.current;
+    if (!activeRecognition) return;
+
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+
+    setDebugMsg('🛑 עוצר הקלטה...');
+    activeRecognition.stop();
+  };
+
   const startRecognition = () => {
+    // אם כבר בהאזנה – אל תתחיל מחדש
+    if (listening) return;
+
+    // @ts-ignore
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
       alert('הדפדפן שלך לא תומך בזיהוי קולי');
@@ -253,31 +285,81 @@ export default function ConversationsIndex() {
     }
 
     try {
+      // ודא שלא רץ מופע קודם
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+
       const recognition = new SpeechRecognition();
+      recognitionRef.current = recognition;
       recognition.lang = 'ru-RU';
-      recognition.interimResults = false;
+      
+      // ✅ שינוי קריטי 1: מאפשר דיבור רציף ללא עצירה אוטומטית אחרי מילה
+      recognition.continuous = true; 
+      
+      // ✅ שינוי קריטי 2: קבלת תוצאות בזמן אמת כדי לאפס את הטיימר
+      recognition.interimResults = true; 
       recognition.maxAlternatives = 1;
 
-      const timeoutId = setTimeout(() => recognition.stop(), 8000);
-
       recognition.onstart = () => {
-        setDebugMsg('🎙️ Listening...');
+        setDebugMsg('🎙️ מקשיב... לחץ שוב לסיום');
         setListening(true);
+        transcriptRef.current = ""; // איפוס הטקסט
       };
+
       recognition.onend = () => {
-        clearTimeout(timeoutId);
+        recognitionRef.current = null;
         setListening(false);
-        setDebugMsg('🛑 Recognition ended.');
+        if (silenceTimerRef.current) {
+          clearTimeout(silenceTimerRef.current);
+          silenceTimerRef.current = null;
+        }
+        // אם נאסף טקסט בסוף ההקלטה - שלח אותו
+        if (transcriptRef.current.trim().length > 0) {
+            setDebugMsg('🛑 עיבוד סופי...');
+            handleRecognizedText(transcriptRef.current);
+        } else {
+            setDebugMsg('🛑 לא זוהה דיבור.');
+        }
       };
-      recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+
+      recognition.onerror = (event: any) => {
         console.error('Speech recognition error:', event.error);
+        recognitionRef.current = null;
         setListening(false);
-        setDebugMsg(`❌ STT error: ${event.error}`);
+        setDebugMsg(`❌ שגיאה: ${event.error}`);
       };
-      recognition.onresult = (event: SpeechRecognitionEvent) => {
-        const text = event.results[0][0].transcript;
-        setDebugMsg(`📝 Recognized: "${text}"`);
-        handleRecognizedText(text);
+
+      recognition.onresult = (event: any) => {
+        // איפוס טיימר השתיקה בכל פעם שמתקבל דיבור כלשהו
+        if (silenceTimerRef.current) {
+          clearTimeout(silenceTimerRef.current);
+        }
+
+        // בניית הטקסט מתוך התוצאות
+        let interimTranscript = '';
+        let finalTranscript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript;
+          } else {
+            interimTranscript += event.results[i][0].transcript;
+          }
+        }
+
+        // עדכון הטקסט הנוכחי (משלבים את הסופי עם הזמני כדי לראות מה אתה אומר)
+        const currentText = finalTranscript || interimTranscript;
+        
+        if (currentText) {
+            transcriptRef.current = currentText; 
+            setDebugMsg(`📝 שומע: "${currentText}"`);
+            
+            // ✅ לוגיקת השתיקה: אם לא דיברת 2.5 שניות - עצור
+            silenceTimerRef.current = setTimeout(() => {
+                recognition.stop(); // זה יפעיל את onend שישלח את ההודעה
+            }, 2500);
+        }
       };
 
       recognition.start();
@@ -298,7 +380,7 @@ export default function ConversationsIndex() {
           return;
         }
         const genAI = new GoogleGenerativeAI(API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const globalPrompt = correctionEnabled
           ? basePrompt + "\n\n" + correctionAddon
           : basePrompt;
@@ -308,7 +390,8 @@ export default function ConversationsIndex() {
             parts: [{ text: globalPrompt + '\n\n' + selectedConversation.prompt }]
           }],
           generationConfig: {
-            maxOutputTokens: 50,
+            // ✅ גם כאן: הגדלתי ל-500
+            maxOutputTokens: 500,
             temperature: 0.7,
           },
         });
@@ -364,7 +447,6 @@ export default function ConversationsIndex() {
                 )}
               </div>
             </div>
-            // הצעות לתשובה UI - מחוץ לבועה של הבוט, אחרי ההודעה האחרונה בלבד
           ))}
           {/* הצעות לתשובה - רק אחרי הודעת הבוט האחרונה */}
           {history.length > 0 && history[history.length - 1].role === 'assistant' && suggestedReplies.length > 0 && (
@@ -410,10 +492,10 @@ export default function ConversationsIndex() {
           ) : (
             <button
               className={`${styles.recordButton} ${listening ? styles.recording : ''}`}
-              onClick={startRecognition}
-              disabled={listening || loading}
+              onClick={() => (listening ? stopRecognition() : startRecognition())}
+              disabled={loading}
             >
-              {listening ? 'מקשיב...' : 'לחץ ודבר'}
+              {listening ? 'סיים הקלטה' : 'לחץ ודבר'}
             </button>
           )}
         </div>
