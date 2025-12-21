@@ -13,20 +13,14 @@ export default function Home() {
         <h2 className={styles.subheader}>מה נלמד היום - что мы узнаем сегодня ?</h2>
       </header>
       <main className={styles.mainNav}>
-        <Link href="/vocabulary" className={styles.navButton}>
+        <Link href="/vocabulary" className={`${styles.navButton} ${styles.fullWidthButton}`}>
           <span className={styles.icon}>
             <img src="/animations/puzzle.png" alt="Vocabulary Icon" className={styles.iconImage} />
           </span>        
           <span className={styles.buttonText}>אוצר מילים</span>
           <span className={styles.buttonSubtext}>למדו מילים בעזרת אסוציאציות</span>
         </Link>
-        <Link href="/exercise" className={styles.navButton}>
-          <span className={styles.icon}>
-            <img src="/animations/play.png" alt="Practice Icon" className={styles.iconImage} />
-          </span>        
-          <span className={styles.buttonText}>תרגול</span>
-          <span className={styles.buttonSubtext}>תרגולים קצרים מובנים בדף</span>
-        </Link>
+
         <Link href="/conversations" className={`${styles.navButton} ${styles.fullWidthButton}`}>
           <span className={styles.icon}>
             <img src="/animations/mask.png" alt="Conversations Icon" className={styles.iconImage} />
