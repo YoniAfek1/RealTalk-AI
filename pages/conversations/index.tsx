@@ -416,7 +416,7 @@ export default function ConversationsIndex() {
 
         <div className={styles.correctionToggle}>
           <label>
-            האם תרצה לקבל תיקונים שלך בשיחה?
+            להציע לך אפשרויות תגובה?
             <input
               type="checkbox"
               checked={correctionEnabled}
