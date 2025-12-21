@@ -16,9 +16,11 @@ export default function Home() {
         <Link href="/vocabulary" className={`${styles.navButton} ${styles.fullWidthButton}`}>
           <span className={styles.icon}>
             <img src="/animations/puzzle.png" alt="Vocabulary Icon" className={styles.iconImage} />
-          </span>        
-          <span className={styles.buttonText}>אוצר מילים</span>
-          <span className={styles.buttonSubtext}>למדו מילים בעזרת אסוציאציות</span>
+          </span>   
+          <div className={styles.textColumn}>
+            <span className={styles.buttonText}>אוצר מילים</span>
+            <span className={styles.buttonSubtext}>למדו מילים בעזרת אסוציאציות</span>
+          </div>     
         </Link>
 
         <Link href="/conversations" className={`${styles.navButton} ${styles.fullWidthButton}`}>
